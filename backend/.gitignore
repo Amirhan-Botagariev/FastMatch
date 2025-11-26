@@ -1,0 +1,93 @@
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ========================
+# Poetry
+# ========================
+.poetry/
+poetry.lock
+.envrc
+
+# ========================
+# Virtual env
+# ========================
+.venv/
+venv/
+ENV/
+env/
+.virtualenv/
+
+# ========================
+# Environment variables
+# ========================
+.env
+.env.*
+!.env.example
+
+# ========================
+# Logs
+# ========================
+*.log
+logs/
+
+# ========================
+# OS system files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# IDE
+# ========================
+.idea/
+.vscode/
+*.iml
+
+# ========================
+# Uploads & Storage
+# ========================
+storage/
+uploads/
+media/
+tmp/
+tmp_uploads/
+
+# ========================
+# Generated files
+# ========================
+*.sqlite3
+*.db
+*.csv
+*.jsonl
+
+# ========================
+# Cache
+# ========================
+.cache/
+.mypy_cache/
+.pytest_cache/
+
+# ========================
+# Jupyter
+# ========================
+.ipynb_checkpoints/
+
+# ========================
+# Docker (если появится позже)
+# ========================
+docker-compose.override.yml
+
+# ========================
+# Debug output
+# ========================
+debug.html
