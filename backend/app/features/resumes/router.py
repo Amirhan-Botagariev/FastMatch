@@ -11,7 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.logging import app_logger
-from app.features.resumes.schemas import ResumeOut, SectionSchema, ResumeListItem
+from app.features.resumes.schemas import (
+    ResumeOut,
+    SectionSchema,
+    ResumeListItem,
+    VersionCreate,
+    VersionOut,
+)
 from app.features.resumes.service import ResumeService
 from app.features.resumes.ingestion.service import IngestionService
 from app.features.resumes.parsing.service import ParsingService
@@ -27,6 +33,7 @@ def get_resume_service(db: AsyncSession = Depends(get_db)) -> ResumeService:
       - ParsingService для парсинга через LLM
       - ResumeService как оркестратор
       - AsyncSession для работы с БД
+      - LLMClient для кастомизации резюме
 
     Позже это можно заменить на полноценный DI-контейнер.
     """
@@ -38,6 +45,7 @@ def get_resume_service(db: AsyncSession = Depends(get_db)) -> ResumeService:
         ingestion_service=ingestion_service,
         parsing_service=parsing_service,
         db_session=db,
+        llm_client=llm_client,
     )
 
 
@@ -350,5 +358,170 @@ async def download_resume_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during resume file download",
+        ) from exc
+
+
+@router.post("/{resume_id}/versions", response_model=VersionOut, status_code=201)
+async def create_resume_version(
+    resume_id: UUID,
+    version_data: VersionCreate,
+    resume_service: ResumeService = Depends(get_resume_service),
+):
+    """
+    Создать кастомную версию резюме под описание вакансии.
+
+    Использует LLM для адаптации резюме под требования вакансии:
+    - Анализирует описание вакансии
+    - Адаптирует секции резюме под требования
+    - Подчеркивает релевантный опыт и навыки
+    - Сохраняет структуру и язык исходного резюме
+
+    Args:
+        resume_id: UUID исходного резюме
+        version_data: Данные для создания версии (job_description)
+
+    Returns:
+        Созданная версия резюме с кастомизированными секциями
+
+    Raises:
+        404: Если резюме не найдено
+        400: Если у резюме нет секций для кастомизации
+        500: При внутренней ошибке сервера
+    """
+    try:
+        app_logger.info(
+            "Resume version creation request received: resume_id=%s, job_description_length=%d",
+            resume_id,
+            len(version_data.job_description),
+        )
+
+        version = await resume_service.create_custom_version(
+            resume_id=resume_id,
+            job_description=version_data.job_description,
+        )
+
+        # Преобразуем ORM-модели секций в SectionSchema
+        sections: list[SectionSchema] = []
+        if version.sections:
+            for section_model in version.sections:
+                try:
+                    section_data = {
+                        "title": section_model.title,
+                        "content": section_model.content,
+                        "raw_content": section_model.raw_content,
+                    }
+                    sections.append(SectionSchema.model_validate(section_data))
+                except Exception as exc:
+                    app_logger.warning(
+                        "Failed to validate section schema: section_id=%s, error=%s",
+                        section_model.id,
+                        str(exc),
+                    )
+                    continue
+
+        app_logger.info(
+            "Resume version created successfully: version_id=%s, resume_id=%s, sections_count=%d",
+            version.id,
+            resume_id,
+            len(sections),
+        )
+
+        return VersionOut(
+            id=version.id,
+            resume_id=version.resume_id,
+            job_description=version.job_description,
+            sections=sections,
+            created_at=version.created_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        app_logger.exception(
+            exc,
+            "Unexpected error during resume version creation",
+            resume_id=str(resume_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during resume version creation",
+        ) from exc
+
+
+@router.get("/versions/{version_id}", response_model=VersionOut)
+async def get_resume_version(
+    version_id: UUID,
+    resume_service: ResumeService = Depends(get_resume_service),
+):
+    """
+    Получить детальную информацию о версии резюме по ID.
+
+    Возвращает полную информацию о версии резюме, включая:
+    - Базовую информацию (id, resume_id, job_description, created_at)
+    - Сопроводительное письмо (cover_letter)
+    - Кастомизированные секции резюме (sections)
+
+    Args:
+        version_id: UUID версии резюме
+
+    Returns:
+        Полная информация о версии резюме в формате VersionOut
+
+    Raises:
+        404: Если версия не найдена
+        500: При внутренней ошибке сервера
+    """
+    try:
+        app_logger.info(
+            "Resume version detail request received: version_id=%s",
+            version_id,
+        )
+
+        version = await resume_service.get_version_by_id(version_id)
+
+        # Преобразуем ORM-модели секций в SectionSchema
+        sections: list[SectionSchema] = []
+        if version.sections:
+            for section_model in version.sections:
+                try:
+                    section_data = {
+                        "title": section_model.title,
+                        "content": section_model.content,
+                        "raw_content": section_model.raw_content,
+                    }
+                    sections.append(SectionSchema.model_validate(section_data))
+                except Exception as exc:
+                    app_logger.warning(
+                        "Failed to validate section schema: section_id=%s, error=%s",
+                        section_model.id,
+                        str(exc),
+                    )
+                    continue
+
+        app_logger.info(
+            "Resume version detail retrieved successfully: version_id=%s, sections_count=%d, has_cover_letter=%s",
+            version_id,
+            len(sections),
+            version.cover_letter is not None,
+        )
+
+        return VersionOut(
+            id=version.id,
+            resume_id=version.resume_id,
+            job_description=version.job_description,
+            cover_letter=version.cover_letter,
+            sections=sections,
+            created_at=version.created_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        app_logger.exception(
+            exc,
+            "Unexpected error during resume version detail retrieval",
+            version_id=str(version_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during resume version detail retrieval",
         ) from exc
 

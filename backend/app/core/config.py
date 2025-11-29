@@ -44,11 +44,22 @@ class Settings:
         self.LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "30"))
 
         # Настройки PostgreSQL
-        self.DB_HOST: str = os.getenv("DB_HOST", "localhost")
-        self.DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
-        self.DB_USER: str = os.getenv("DB_USER", "postgres")
-        self.DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
-        self.DB_NAME: str = os.getenv("DB_NAME", "fastmatch")
+        # Поддерживаем как DB_*, так и POSTGRES_* для обратной совместимости
+        # Приоритет: DB_HOST > POSTGRES_HOST > localhost (для локального запуска)
+        # Для локального запуска миграций используем localhost (порт проброшен из Docker)
+        # Для запуска внутри Docker используем postgres (имя сервиса)
+        # Если явно указан DB_HOST, используем его (имеет приоритет)
+        # Иначе используем POSTGRES_HOST, если указан
+        # Иначе используем localhost (для локального подключения к Docker контейнеру)
+        self.DB_HOST: str = (
+            os.getenv("DB_HOST") 
+            or os.getenv("POSTGRES_HOST") 
+            or "localhost"
+        )
+        self.DB_PORT: int = int(os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT", "5432"))
+        self.DB_USER: str = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "postgres")
+        self.DB_PASSWORD: str = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "postgres")
+        self.DB_NAME: str = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "fastmatch")
         self.DB_ECHO: bool = self._bool(os.getenv("DB_ECHO", "false"))
 
     @property

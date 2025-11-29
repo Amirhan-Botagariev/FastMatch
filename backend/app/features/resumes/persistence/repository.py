@@ -8,8 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.logging import app_logger
-from app.features.resumes.persistence.models import ResumeModel, ResumeSectionModel
-from app.features.resumes.models import BaseResume
+from app.features.resumes.persistence.models import (
+    ResumeModel,
+    ResumeSectionModel,
+    ResumeVersionModel,
+    ResumeVersionSectionModel,
+)
+from app.features.resumes.models import BaseResume, ParsedResumeData
 
 
 class ResumeRepository:
@@ -127,6 +132,70 @@ class ResumeRepository:
                 exc,
                 "Failed to list resumes from DB",
                 user_id=str(user_id) if user_id else None,
+            )
+            raise
+
+    async def create_version(
+        self,
+        resume_id: UUID,
+        job_description: str,
+        custom_sections: list[dict],
+        cover_letter: Optional[str] = None,
+    ) -> ResumeVersionModel:
+        """
+        Создает кастомную версию резюме под описание вакансии.
+
+        Args:
+            resume_id: ID исходного резюме
+            job_description: Описание вакансии
+            custom_sections: Список кастомизированных секций (словари с title, content, raw_content, order)
+
+        Returns:
+            Созданная модель версии с секциями
+        """
+        try:
+            import uuid
+            version_id = uuid.uuid4()
+            
+            # Создаем версию
+            version = ResumeVersionModel(
+                id=version_id,
+                resume_id=resume_id,
+                job_description=job_description,
+                cover_letter=cover_letter,
+            )
+            self._session.add(version)
+            await self._session.flush()
+
+            # Создаем секции версии
+            for idx, section_data in enumerate(custom_sections):
+                section = ResumeVersionSectionModel(
+                    id=uuid.uuid4(),
+                    version_id=version_id,
+                    title=section_data.get("title"),
+                    content=section_data.get("content"),
+                    raw_content=section_data.get("raw_content"),
+                    order=section_data.get("order", idx),
+                )
+                self._session.add(section)
+
+            await self._session.flush()
+            
+            # Загружаем секции для возврата
+            await self._session.refresh(version, ["sections"])
+            
+            app_logger.debug(
+                "Resume version created: version_id=%s, resume_id=%s, sections_count=%d",
+                version_id,
+                resume_id,
+                len(custom_sections),
+            )
+            return version
+        except Exception as exc:
+            app_logger.exception(
+                exc,
+                "Failed to create resume version in DB",
+                resume_id=str(resume_id),
             )
             raise
 

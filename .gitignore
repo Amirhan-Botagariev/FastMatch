@@ -1,0 +1,27 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS system files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+log/
+
+# Docker
+docker-compose.override.yml
+
+# Storage
+storage/
+uploads/
+media/
+tmp/
+

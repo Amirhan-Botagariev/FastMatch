@@ -114,3 +114,67 @@ def map_llm_response_to_parsed_data(
         )
         raise
 
+
+def build_resume_customization_prompt(
+    resume_sections: List[Dict[str, Any]],
+    job_description: str,
+) -> str:
+    """
+    Строит промпт для LLM для кастомизации резюме под описание вакансии.
+
+    Args:
+        resume_sections: Список секций исходного резюме
+        job_description: Описание вакансии
+
+    Returns:
+        Промпт для LLM
+    """
+    # Формируем текст резюме из секций
+    resume_text_parts = []
+    for section in resume_sections:
+        title = section.get("title", "")
+        content = section.get("content") or section.get("raw_content", "")
+        if title:
+            resume_text_parts.append(f"{title}\n{content}")
+        else:
+            resume_text_parts.append(content)
+    
+    resume_text = "\n\n".join(resume_text_parts)
+
+    prompt = f"""
+    You are a resume customization assistant. Your task is to adapt a resume to match a specific job description.
+
+    ORIGINAL RESUME:
+    {resume_text}
+
+    JOB DESCRIPTION:
+    {job_description}
+
+    Your task:
+    - Analyze the job description and identify key requirements, skills, and qualifications.
+    - Review the original resume sections.
+    - Create a customized version of the resume that highlights relevant experience, skills, and achievements that match the job description.
+    - Keep the same structure and section titles as the original resume when possible.
+    - Emphasize and rephrase content to better align with the job requirements.
+    - Do NOT add false information or make up experiences that don't exist in the original resume.
+    - Keep the language of the resume (if it's in Russian, keep it in Russian; if English, keep English).
+
+    Output MUST be valid JSON, UTF-8, with double quotes, without comments or explanations.
+    The top-level JSON object MUST have the following structure:
+
+    Schema:
+    {{
+      "sections": [
+        {{
+          "title": "string or null",
+          "content": "string or null",
+          "raw_content": "string or null"
+        }}
+      ]
+    }}
+
+    Return ONLY the JSON object, nothing else.
+    """
+    
+    return textwrap.dedent(prompt).strip()
+

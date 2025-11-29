@@ -68,6 +68,7 @@ class ResumeVersionModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True)
     resume_id: Mapped[UUID] = mapped_column(ForeignKey("resumes.id", ondelete="CASCADE"))
     job_description: Mapped[str] = mapped_column(Text)
+    cover_letter: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Связь с резюме

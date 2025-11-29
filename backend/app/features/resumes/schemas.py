@@ -90,6 +90,10 @@ class VersionOut(BaseModel):
     id: UUID
     resume_id: UUID
     job_description: str
+    cover_letter: Optional[str] = Field(
+        None,
+        description="Сопроводительное письмо, сгенерированное для этой версии резюме",
+    )
     sections: List[SectionSchema] = Field(
         default_factory=list,
         description="Кастомизированные секции резюме под описание вакансии",
