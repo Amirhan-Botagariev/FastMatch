@@ -178,3 +178,60 @@ def build_resume_customization_prompt(
     
     return textwrap.dedent(prompt).strip()
 
+
+def build_cover_letter_prompt(
+    resume_sections: List[Dict[str, Any]],
+    job_description: str,
+) -> str:
+    """
+    Строит промпт для LLM для генерации сопроводительного письма.
+
+    Args:
+        resume_sections: Список секций резюме
+        job_description: Описание вакансии
+
+    Returns:
+        Промпт для LLM
+    """
+    # Формируем краткое резюме из ключевых секций
+    resume_summary_parts = []
+    for section in resume_sections:
+        title = section.get("title", "")
+        content = section.get("content") or section.get("raw_content", "")
+        if title and content:
+            # Берем только первые несколько строк для краткости
+            content_lines = content.split('\n')[:3]
+            resume_summary_parts.append(f"{title}: {' '.join(content_lines)}")
+    
+    resume_summary = "\n".join(resume_summary_parts)
+
+    prompt = f"""
+    You are a professional cover letter writer. Your task is to write a compelling cover letter for a job application.
+
+    RESUME SUMMARY:
+    {resume_summary}
+
+    JOB DESCRIPTION:
+    {job_description}
+
+    Your task:
+    - Write a professional, engaging cover letter that connects the candidate's experience with the job requirements.
+    - Highlight relevant skills, experiences, and achievements from the resume that match the job description.
+    - Use a professional but personable tone.
+    - Keep it concise (approximately 3-4 paragraphs).
+    - Do NOT make up information that is not in the resume.
+    - Match the language of the resume and job description (if Russian, write in Russian; if English, write in English).
+
+    Output MUST be valid JSON, UTF-8, with double quotes, without comments or explanations.
+    The top-level JSON object MUST have the following structure:
+
+    Schema:
+    {{
+      "cover_letter": "string"
+    }}
+
+    Return ONLY the JSON object, nothing else.
+    """
+    
+    return textwrap.dedent(prompt).strip()
+

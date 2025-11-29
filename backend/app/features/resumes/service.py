@@ -129,6 +129,44 @@ class ResumeService:
             parsed_data=parsed_data,
         )
 
+        # 5. Сохраняем резюме в БД, если сессия доступна
+        if self._db_session is not None:
+            try:
+                repository = ResumeRepository(self._db_session)
+                resume_model = await repository.create(resume)
+                
+                # Сохраняем секции, если они есть
+                if parsed_data and parsed_data.sections:
+                    from app.features.resumes.persistence.models import ResumeSectionModel
+                    import uuid
+                    
+                    for idx, section in enumerate(parsed_data.sections):
+                        section_model = ResumeSectionModel(
+                            id=uuid.uuid4(),
+                            resume_id=resume.id,
+                            title=section.title,
+                            content=section.content,
+                            raw_content=section.raw_content,
+                            order=section.order if section.order is not None else idx,
+                        )
+                        self._db_session.add(section_model)
+                    
+                    await self._db_session.flush()
+                    app_logger.info(
+                        "Resume and sections saved to DB: id=%s, sections_count=%d",
+                        resume.id,
+                        len(parsed_data.sections),
+                    )
+                else:
+                    app_logger.info("Resume saved to DB without sections: id=%s", resume.id)
+            except Exception as exc:
+                app_logger.exception(
+                    exc,
+                    "Failed to save resume to DB, but continuing",
+                    resume_id=str(resume.id),
+                )
+                # Не падаем, если не удалось сохранить в БД - резюме уже создано в памяти
+
         return resume, warnings
 
     async def list_resumes(
