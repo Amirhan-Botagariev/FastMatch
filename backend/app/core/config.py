@@ -51,15 +51,11 @@ class Settings:
         # Если явно указан DB_HOST, используем его (имеет приоритет)
         # Иначе используем POSTGRES_HOST, если указан
         # Иначе используем localhost (для локального подключения к Docker контейнеру)
-        self.DB_HOST: str = (
-            os.getenv("DB_HOST") 
-            or os.getenv("POSTGRES_HOST") 
-            or "localhost"
-        )
-        self.DB_PORT: int = int(os.getenv("DB_PORT") or os.getenv("POSTGRES_PORT", "5432"))
-        self.DB_USER: str = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "postgres")
-        self.DB_PASSWORD: str = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "postgres")
-        self.DB_NAME: str = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "fastmatch")
+        self.DB_HOST: str = os.getenv("POSTGRES_HOST") 
+        self.DB_PORT: int = os.getenv("POSTGRES_PORT", "5432")
+        self.DB_USER: str = os.getenv("POSTGRES_USER", "postgres")
+        self.DB_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+        self.DB_NAME: str = os.getenv("POSTGRES_DB", "fastmatch")
         self.DB_ECHO: bool = self._bool(os.getenv("DB_ECHO", "false"))
 
     @property
