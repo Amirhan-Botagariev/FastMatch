@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Literal
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 
@@ -41,6 +42,29 @@ class Settings:
 
         # Таймауты LLM
         self.LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "30"))
+
+        # Настройки PostgreSQL
+        self.DB_HOST: str = os.getenv("DB_HOST", "localhost")
+        self.DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
+        self.DB_USER: str = os.getenv("DB_USER", "postgres")
+        self.DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
+        self.DB_NAME: str = os.getenv("DB_NAME", "fastmatch")
+        self.DB_ECHO: bool = self._bool(os.getenv("DB_ECHO", "false"))
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """
+        Формирует URL для подключения к PostgreSQL.
+        
+        Использует URL-кодирование для учетных данных, чтобы корректно обрабатывать
+        специальные символы в паролях и именах пользователей.
+        """
+        encoded_user = quote_plus(self.DB_USER)
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return (
+            f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
 
     @staticmethod
     def _bool(value: str) -> bool:

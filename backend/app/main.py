@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.core.logger import app_logger
+from app.core.logging import app_logger
 from app.core.debugger import DebugStop
-from app.modules.resumes.router import router as resumes_router
+from app.features.resumes.router import router as resumes_router
 
-from backend.app.core.debugger import debug
+from app.core.debugger import debug
 
 templates = Jinja2Templates(directory="templates")
 
